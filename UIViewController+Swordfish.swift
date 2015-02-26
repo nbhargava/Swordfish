@@ -9,9 +9,9 @@
 import UIKit
 
 extension UIViewController {
-    func Swordfish_viewDidLoad() {
-        println("Swordfish: \(NSStringFromClass(self.dynamicType))")
+    func Swordfish_viewDidAppear(animated: Bool) {
+        Swordfish.log(["view": NSStringFromClass(self.dynamicType), "animated": animated], withCategory: "view_appeared")
         
-        Swordfish_viewDidLoad()
+        Swordfish_viewDidAppear(animated)
     }
 }

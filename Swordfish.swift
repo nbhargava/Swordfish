@@ -9,22 +9,26 @@ import Foundation
 import UIKit
 
 @objc class Swordfish {
-    static let logFilePath: String = {
-        let documentsDirectory = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
-        let fileName = documentsDirectory.stringByAppendingPathComponent("swordfish.log")
-        return fileName
-    }()
-    
-    static var logFileHandle: NSFileHandle?
-    
-    static let operationQueue: NSOperationQueue = {
+    private static let operationQueue: NSOperationQueue = {
         let queue = NSOperationQueue()
         queue.name = "Swordfish"
         queue.maxConcurrentOperationCount = 1
         return queue
     }()
     
-    class func setupAnalytics() {
+    private static let logFilePath: String = {
+        let documentsDirectory = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
+        let fileName = documentsDirectory.stringByAppendingPathComponent("swordfish.log")
+        return fileName
+    }()
+    
+    private static var logFileHandle: NSFileHandle?
+    
+    private static var appSessionInfo: [String : AnyObject]?
+    
+    class func setupAnalyticsWithAppSessionInfo(sessionInfo: [String : AnyObject]?) {
+        setAppSessionInfo(sessionInfo)
+        
         // Check if log file already exists. If so, attempt to upload it.
         // If not, create the file
         if NSFileManager.defaultManager().fileExistsAtPath(logFilePath) {
@@ -43,9 +47,25 @@ import UIKit
             class_getInstanceMethod(UIApplication.self, "Swordfish_sendAction:to:from:forEvent:"))
     }
     
-    class func log(eventMap: [String: AnyObject], withCategory category: String) {
+    class func setAppSessionInfo(newAppSessionInfo: [String : AnyObject]?) {
+        appSessionInfo = newAppSessionInfo
+    }
+    
+    class func log(eventMap: [String : AnyObject], withCategory category: String) {
         operationQueue.addOperationWithBlock { () -> Void in
-            let jsonDict = NSJSONSerialization.dataWithJSONObject([category: eventMap], options:NSJSONWritingOptions(0), error: nil)
+            var logDict: [String : AnyObject] = [
+                "category": category,
+                "device": UIDevice.currentDevice().systemName,
+                "device_os": UIDevice.currentDevice().systemVersion,
+                "timestamp": NSDate.timeIntervalSinceReferenceDate(),
+                "eventMap": eventMap
+            ]
+            
+            if self.appSessionInfo != nil {
+                logDict["session_info"] = self.appSessionInfo
+            }
+            
+            let jsonDict = NSJSONSerialization.dataWithJSONObject(logDict, options:NSJSONWritingOptions(0), error: nil)
             self.logFileHandle?.writeData(jsonDict!)
             self.logFileHandle?.writeData(("\n" as NSString).dataUsingEncoding(NSUTF8StringEncoding)!)
         }
